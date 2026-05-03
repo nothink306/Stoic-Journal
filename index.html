@@ -1,0 +1,705 @@
+```html
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mein Stoisches Tagebuch</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Globale Schriftart auf Times New Roman setzen */
+        body, input, textarea, button, h1, h2, h3, h4, p, span, div { 
+            font-family: 'Times New Roman', Times, serif !important; 
+        }
+        
+        body { margin: 0; padding: 0; background-color: #e5e7eb; }
+        .pb-safe { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-down { animation: fadeInDown 0.3s ease-out forwards; }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- SVG Icons ---
+        const IconSun = ({ size = 24, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>;
+        const IconMoon = ({ size = 24, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>;
+        const IconBook = ({ size = 24, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>;
+        const IconSave = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
+        const IconCheckCircle = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+        const IconShield = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+        const IconScale = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>;
+        const IconAnchor = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>;
+        const IconLightbulb = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>;
+        const IconFeather = ({ size = 24, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>;
+        const IconQuote = ({ size = 24, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1.5.5 1.5 1.5L5 15c0 1.5.5 4-2 6Z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.5c1 0 1.5.5 1.5 1.5L17 15c0 1.5.5 4-2 6Z"/></svg>;
+        const IconPlus = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const IconRefresh = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+        const IconList = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
+        const IconClose = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const IconFlame = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>;
+        const IconZap = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+        const IconEyeOff = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>;
+        const IconCloudRain = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>;
+        const IconSettings = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+        const IconDownload = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+        const IconUpload = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
+        const IconEdit = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+        const IconTrash = ({ size = 20, className = "" }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
+
+        // Standard-Zitate
+        const defaultQuotes = [
+            { text: "Vergeude keine Zeit mehr damit, darüber zu streiten, was ein guter Mann sein sollte. Sei einer.", author: "Marcus Aurelius" },
+            { text: "Wir leiden öfter in der Vorstellung als in der Realität.", author: "Seneca" },
+            { text: "Es sind nicht die Dinge selbst, die uns beunruhigen, sondern die Vorstellungen und Meinungen, die wir von den Dingen haben.", author: "Epiktet" },
+            { text: "Das Glück deines Lebens hängt von der Beschaffenheit deiner Gedanken ab.", author: "Marcus Aurelius" },
+            { text: "Wenn du am Morgen erwachst, denke daran, was für ein kostbares Privileg es ist, am Leben zu sein – zu atmen, zu denken, zu genießen, zu lieben.", author: "Marcus Aurelius" },
+            { text: "Wer überall ist, ist nirgendwo.", author: "Seneca" },
+            { text: "Es ist nicht der Tod, den ein Mann fürchten sollte, sondern er sollte fürchten, nie zu leben begonnen zu haben.", author: "Marcus Aurelius" },
+            { text: "Manchmal ist das Leben selbst ein Act des Mutes.", author: "Seneca" }
+        ];
+
+        // --- HILFSKOMPONENTEN ---
+        const SectionHeader = ({ title, description, t }) => (
+            <div className="mb-4 transition-colors duration-500">
+                <h3 className={`text-lg font-bold ${t.textPrimary}`}>{title}</h3>
+                {description && <p className={`text-sm italic mt-1 ${t.textMuted}`}>{description}</p>}
+            </div>
+        );
+
+        const TextArea = ({ label, value, onChange, placeholder, rows = "h-28", t }) => (
+            <div className="mb-4">
+                {label && <label className={`block text-sm font-bold mb-1 transition-colors duration-500 ${t.textPrimary}`}>{label}</label>}
+                <textarea
+                    className={`w-full p-3 rounded-lg border outline-none transition-all duration-300 resize-none ${rows} text-sm ${t.inputBg} ${t.inputBorder} ${t.inputText}`}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                />
+            </div>
+        );
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('morning');
+            const [showToast, setShowToast] = useState(false);
+            const [toastMsg, setToastMsg] = useState('');
+            
+            // Tages-Eintrag State
+            const [entry, setEntry] = useState(getEmptyEntry());
+            
+            // Historie laden/speichern
+            const [history, setHistory] = useState(() => {
+                try {
+                    const savedHistory = localStorage.getItem('stoisches_tagebuch_historie');
+                    if (savedHistory) {
+                        const parsed = JSON.parse(savedHistory);
+                        return parsed.map((item, idx) => item.id ? item : { ...item, id: `legacy-${idx}-${Date.now()}` });
+                    }
+                } catch (e) { return []; }
+                return [];
+            });
+
+            // Entwurf für heute laden/speichern
+            const [draft, setDraft] = useState(() => {
+                try {
+                    const savedDraft = localStorage.getItem('stoisches_tagebuch_draft');
+                    if (savedDraft) {
+                        const parsedDraft = JSON.parse(savedDraft);
+                        const today = new Date().toISOString().split('T')[0];
+                        if (parsedDraft.date === today) return parsedDraft;
+                    }
+                } catch (e) {}
+                return null;
+            });
+
+            // Beim Start Entwurf laden, falls vorhanden und wir nicht gerade editieren
+            useEffect(() => {
+                if (draft && !entry.id) {
+                    setEntry(prev => ({ ...prev, ...draft }));
+                }
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('stoisches_tagebuch_historie', JSON.stringify(history));
+            }, [history]);
+
+            useEffect(() => {
+                if (draft) {
+                    localStorage.setItem('stoisches_tagebuch_draft', JSON.stringify(draft));
+                } else {
+                    localStorage.removeItem('stoisches_tagebuch_draft');
+                }
+            }, [draft]);
+
+            // Zitate laden/speichern
+            const [quotes, setQuotes] = useState(() => {
+                try {
+                    const savedQuotes = localStorage.getItem('stoisches_tagebuch_zitate');
+                    return savedQuotes ? JSON.parse(savedQuotes) : defaultQuotes;
+                } catch (e) { return defaultQuotes; }
+            });
+
+            useEffect(() => {
+                localStorage.setItem('stoisches_tagebuch_zitate', JSON.stringify(quotes));
+            }, [quotes]);
+
+            // State für Zitate UI
+            const [dailyQuote, setDailyQuote] = useState(null);
+            const [showQuoteForm, setShowQuoteForm] = useState(false);
+            const [showQuotesListModal, setShowQuotesListModal] = useState(false); 
+            const [showSettingsModal, setShowSettingsModal] = useState(false);
+            const [confirmModal, setConfirmModal] = useState({ isOpen: false });
+            const [newQuoteText, setNewQuoteText] = useState('');
+            const [newQuoteAuthor, setNewQuoteAuthor] = useState('');
+
+            const pickRandomQuote = () => {
+                if(quotes.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * quotes.length);
+                    setDailyQuote(quotes[randomIndex]);
+                }
+            };
+
+            useEffect(() => {
+                pickRandomQuote();
+            }, [quotes.length]);
+
+            const handleAddQuote = () => {
+                if(newQuoteText.trim() !== '') {
+                    const author = newQuoteAuthor.trim() !== '' ? newQuoteAuthor.trim() : 'Unbekannt';
+                    const newQuote = { text: newQuoteText.trim(), author: author };
+                    setQuotes([newQuote, ...quotes]);
+                    setDailyQuote(newQuote);
+                    setNewQuoteText('');
+                    setNewQuoteAuthor('');
+                    setShowQuoteForm(false);
+                }
+            };
+
+            function getEmptyEntry() {
+                return {
+                    id: '',
+                    date: new Date().toISOString().split('T')[0],
+                    mood: '', controlIn: '', controlOut: '', obstacle: '', reaction: '',
+                    virtue: '', vices: [], intention: '', wrong: '', right: '', better: '',
+                    gratitude: '', mementoMori: ''
+                };
+            }
+
+            const handleInputChange = (field, value) => {
+                setEntry(prev => ({ ...prev, [field]: value }));
+            };
+
+            const handleViceToggle = (viceId) => {
+                setEntry(prev => {
+                    const currentVices = prev.vices || [];
+                    if (currentVices.includes(viceId)) {
+                        return { ...prev, vices: currentVices.filter(id => id !== viceId) };
+                    } else {
+                        return { ...prev, vices: [...currentVices, viceId] };
+                    }
+                });
+            };
+
+            const showNotification = (msg) => {
+                setToastMsg(msg);
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 3000);
+            };
+
+            // Felder für Vollständigkeits-Check
+            const morningFields = {
+                mood: "Aktuelle Stimmung",
+                controlIn: "In meiner Macht",
+                controlOut: "Nicht in meiner Macht",
+                obstacle: "Mögliches Hindernis",
+                reaction: "Stoische Reaktion",
+                virtue: "Tagesintention (Tugend)",
+                intention: "Konkrete Intention"
+            };
+
+            const eveningFields = {
+                wrong: "Was habe ich falsch gemacht?",
+                right: "Was habe ich richtig gemacht?",
+                better: "Was kann ich besser machen?",
+                gratitude: "Dankbar für",
+                mementoMori: "Memento Mori"
+            };
+
+            const initiateSave = (type) => {
+                const isMorningOnly = type === 'morning_draft';
+                const fieldsToCheck = isMorningOnly ? morningFields : { ...morningFields, ...eveningFields };
+                const missingFields = [];
+
+                for (const [key, label] of Object.entries(fieldsToCheck)) {
+                    if (!entry[key] || String(entry[key]).trim() === '') {
+                        missingFields.push(label);
+                    }
+                }
+
+                const isEdit = !!entry.id;
+
+                if (missingFields.length > 0) {
+                    const msg = `Folgende Felder sind noch unbearbeitet:\n\n• ${missingFields.join('\n• ')}\n\n${isMorningOnly ? 'Möchtest du den Morgen-Entwurf trotzdem speichern?' : 'Möchtest du den Tag trotzdem abschließen?'}`;
+                    setConfirmModal({
+                        isOpen: true,
+                        title: isMorningOnly ? 'Unvollständiger Entwurf' : 'Unvollständiger Eintrag',
+                        message: msg,
+                        confirmText: 'Trotzdem speichern',
+                        cancelText: 'Weiter bearbeiten',
+                        onConfirm: () => isMorningOnly ? performDraftSave() : performFinalSave()
+                    });
+                } else if (isEdit) {
+                    setConfirmModal({
+                        isOpen: true,
+                        title: 'Änderungen speichern',
+                        message: 'Bist du sicher, dass du die Änderungen an diesem Eintrag speichern möchtest?',
+                        confirmText: 'Ja, speichern',
+                        cancelText: 'Abbrechen',
+                        onConfirm: performFinalSave
+                    });
+                } else if (!isMorningOnly) {
+                    setConfirmModal({
+                        isOpen: true,
+                        title: 'Tag abschließen',
+                        message: 'Möchtest du den heutigen Tag nun final in deinen Verlauf speichern?',
+                        confirmText: 'Ja, abschließen',
+                        cancelText: 'Abbrechen',
+                        onConfirm: performFinalSave
+                    });
+                } else {
+                    performDraftSave();
+                }
+            };
+
+            const performDraftSave = () => {
+                setDraft(entry);
+                showNotification("Morgen-Reflexion zwischengespeichert.");
+                setConfirmModal({ isOpen: false });
+            };
+
+            const performFinalSave = () => {
+                if (entry.id) {
+                    // Bestehenden Eintrag updaten
+                    setHistory(prev => prev.map(h => h.id === entry.id ? entry : h));
+                    showNotification("Änderungen am Eintrag gespeichert.");
+                } else {
+                    // Neuen Eintrag anlegen
+                    const newEntry = { ...entry, id: Date.now().toString() };
+                    setHistory(prev => [newEntry, ...prev]);
+                    setDraft(null); // Entwurf löschen
+                    showNotification("Tag erfolgreich abgeschlossen & gespeichert.");
+                }
+                setConfirmModal({ isOpen: false });
+                setEntry(getEmptyEntry());
+                setActiveTab('history');
+            };
+
+            const handleEdit = (histEntry) => {
+                setEntry({ ...histEntry });
+                setActiveTab('morning');
+            };
+
+            const handleDelete = (id) => {
+                setConfirmModal({
+                    isOpen: true,
+                    title: 'Eintrag löschen',
+                    message: 'Möchtest du diesen Eintrag wirklich unwiderruflich löschen?',
+                    confirmText: 'Ja, löschen',
+                    cancelText: 'Abbrechen',
+                    isDanger: true,
+                    onConfirm: () => {
+                        setHistory(prev => prev.filter(h => h.id !== id));
+                        setConfirmModal({ isOpen: false });
+                        showNotification("Eintrag gelöscht.");
+                        if (entry.id === id) setEntry(getEmptyEntry());
+                    }
+                });
+            };
+
+            const handleExportData = () => {
+                const data = { history, quotes };
+                const dataStr = JSON.stringify(data, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `stoisches_tagebuch_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showNotification("Backup erfolgreich exportiert.");
+                setShowSettingsModal(false);
+            };
+
+            const handleImportData = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (data.history) setHistory(data.history);
+                        if (data.quotes) setQuotes(data.quotes);
+                        showNotification("Daten erfolgreich importiert!");
+                        setShowSettingsModal(false);
+                    } catch (error) {
+                        alert("Fehler beim Importieren.");
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            };
+
+            const virtues = [
+                { id: 'Weisheit', icon: <IconLightbulb size={20} />, desc: 'Objektivität & Urteil' },
+                { id: 'Mut', icon: <IconShield size={20} />, desc: 'Das Richtige tun' },
+                { id: 'Gerechtigkeit', icon: <IconScale size={20} />, desc: 'Fairness & Pflicht' },
+                { id: 'Mäßigung', icon: <IconAnchor size={20} />, desc: 'Disziplin & Maß' }
+            ];
+
+            const vicesList = [
+                { id: 'Impulsivität', icon: <IconFlame size={20} />, desc: 'Emotionale Reaktionen' },
+                { id: 'Unruhe', icon: <IconZap size={20} />, desc: 'Gedankliche Hast' },
+                { id: 'Ablenkung', icon: <IconEyeOff size={20} />, desc: 'Fokusverlust' },
+                { id: 'Negativität', icon: <IconCloudRain size={20} />, desc: 'Klagen & Pessimismus' }
+            ];
+
+            const formatDate = (dateString) => {
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString('de-DE', options);
+            };
+
+            const themes = {
+                morning: {
+                    wrapper: "bg-stone-200", container: "bg-stone-100", header: "bg-stone-800 text-stone-50 border-stone-800",
+                    headerSubtitle: "text-stone-300", card: "bg-white border-stone-200 shadow-sm",
+                    textPrimary: "text-stone-800", textSecondary: "text-stone-600", textMuted: "text-stone-500",
+                    inputBg: "bg-stone-50", inputBorder: "border-stone-200 focus:ring-stone-400 focus:border-stone-400",
+                    inputText: "text-stone-800 placeholder-stone-400", buttonPrimary: "bg-stone-800 text-stone-50 hover:bg-stone-700 shadow-stone-800/20",
+                    navBg: "bg-white border-stone-200", navActive: "text-stone-800", navInactive: "text-stone-400",
+                    virtueBtnActive: "bg-stone-800 text-stone-50 border-stone-800 shadow-md", virtueBtnInactive: "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100",
+                    viceBtnActive: "bg-red-900 text-stone-50 border-red-900 shadow-md",
+                    quoteBg: "bg-stone-100", quoteBorder: "border-stone-300", quoteIcon: "text-stone-300",
+                    badgeVice: "bg-red-100 text-red-800"
+                },
+                evening: {
+                    wrapper: "bg-slate-950", container: "bg-slate-900", header: "bg-slate-950 text-slate-50 border-b border-slate-800",
+                    headerSubtitle: "text-slate-400", card: "bg-slate-800 border-slate-700 shadow-md",
+                    textPrimary: "text-slate-100", textSecondary: "text-slate-300", textMuted: "text-slate-400",
+                    inputBg: "bg-slate-900", inputBorder: "border-slate-600 focus:ring-indigo-500 focus:border-indigo-500",
+                    inputText: "text-slate-100 placeholder-slate-500", buttonPrimary: "bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-900/30",
+                    navBg: "bg-slate-900 border-slate-800", navActive: "text-indigo-400", navInactive: "text-slate-600",
+                    virtueBtnActive: "bg-indigo-600 text-white border-indigo-600 shadow-md", virtueBtnInactive: "bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800",
+                    viceBtnActive: "bg-rose-900 text-white border-rose-900 shadow-md",
+                    quoteBg: "bg-slate-800", quoteBorder: "border-slate-700", quoteIcon: "text-slate-600",
+                    badgeVice: "bg-rose-900/40 text-rose-300"
+                },
+                history: {
+                    wrapper: "bg-[#140b1c]", container: "bg-[#1b112c]", header: "bg-[#140b1c] text-[#d4af37] border-b border-[#3b1f52]", 
+                    headerSubtitle: "text-[#a68bb8]", card: "bg-[#2a1b40] border-[#432a63] shadow-lg shadow-purple-900/20",
+                    textPrimary: "text-[#d4af37]", textSecondary: "text-[#e2d9f3]", textMuted: "text-[#8869a1]",
+                    inputBg: "bg-[#1b112c]", inputBorder: "border-[#432a63] focus:ring-[#d4af37] focus:border-[#d4af37]",
+                    inputText: "text-[#e2d9f3] placeholder-[#64497d]", buttonPrimary: "bg-[#d4af37] text-[#140b1c] hover:bg-[#b5952f] shadow-[#d4af37]/20",
+                    navBg: "bg-[#140b1c] border-[#3b1f52]", navActive: "text-[#d4af37]", navInactive: "text-[#543b6b]",
+                    virtueBtnActive: "bg-[#d4af37] text-[#140b1c] border-[#d4af37] shadow-md", virtueBtnInactive: "bg-[#1b112c] text-[#e2d9f3] border-[#432a63] hover:bg-[#2a1b40]",
+                    viceBtnActive: "bg-[#7a1f3d] text-[#e2d9f3] border-[#7a1f3d] shadow-md",
+                    quoteBg: "bg-[#2a1b40]", quoteBorder: "border-[#432a63]", quoteIcon: "text-[#432a63]",
+                    badgeVice: "bg-[#7a1f3d]/40 text-[#f5a6c4]"
+                }
+            };
+
+            const t = themes[activeTab];
+
+            return (
+                <div className={`min-h-screen flex justify-center transition-colors duration-500 ${t.wrapper}`}>
+                    
+                    <div className={`w-full max-w-md min-h-screen shadow-2xl relative flex flex-col transition-colors duration-500 overflow-hidden ${t.container}`}>
+                        
+                        <header className={`p-6 pt-8 rounded-b-2xl z-10 shrink-0 transition-colors duration-500 ${t.header}`}>
+                            <div className="flex justify-between items-center mb-2">
+                                <h1 className="text-2xl font-bold flex items-center gap-2">
+                                    <IconFeather size={24} /> Mein Tagebuch
+                                </h1>
+                                <button onClick={() => setShowSettingsModal(true)} className={`p-2 rounded-full transition-colors hover:bg-white/20`}>
+                                    <IconSettings size={22} />
+                                </button>
+                            </div>
+                            <p className={`text-sm transition-colors duration-500 ${t.headerSubtitle}`}>
+                                {formatDate(entry.date)}
+                            </p>
+                        </header>
+
+                        <main className="flex-1 overflow-y-auto pb-24 p-5 relative">
+                            
+                            {showToast && (
+                                <div className="bg-emerald-100 border border-emerald-400 text-emerald-800 px-4 py-3 rounded-lg mb-4 flex items-center gap-2 shadow-sm animate-fade-in-down">
+                                    <IconCheckCircle size={20} />
+                                    <span>{toastMsg}</span>
+                                </div>
+                            )}
+
+                            {entry.id && (activeTab === 'morning' || activeTab === 'evening') && (
+                                <div className="bg-[#d4af37]/20 border border-[#d4af37] text-stone-800 px-4 py-3 rounded-lg mb-4 flex justify-between items-center shadow-sm animate-fade-in-down">
+                                    <div>
+                                        <p className="font-bold text-sm">Bearbeitungsmodus</p>
+                                        <p className="text-xs opacity-80">{formatDate(entry.date)}</p>
+                                    </div>
+                                    <button onClick={() => setEntry(getEmptyEntry())} className="text-xs bg-white px-3 py-2 rounded-lg font-bold shadow-sm hover:bg-stone-50">Abbrechen</button>
+                                </div>
+                            )}
+
+                            {/* REITER: MORGEN */}
+                            {activeTab === 'morning' && (
+                                <div className="space-y-6 animate-fade-in">
+                                    <div className={`p-5 rounded-xl border relative transition-colors duration-500 ${t.card} ${t.quoteBg}`}>
+                                        <IconQuote size={36} className={`absolute top-4 left-4 opacity-50 ${t.quoteIcon}`} />
+                                        <div className="relative z-10 pl-8 pr-2">
+                                            {dailyQuote && (
+                                                <>
+                                                    <p className={`text-base italic mb-3 leading-relaxed ${t.textPrimary}`}>"{dailyQuote.text}"</p>
+                                                    <p className={`text-sm font-bold text-right ${t.textMuted}`}>— {dailyQuote.author}</p>
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-stone-200">
+                                            <button onClick={() => setShowQuotesListModal(true)} className={`p-2 rounded-full transition-colors hover:bg-stone-200 ${t.textMuted}`}><IconList size={18} /></button>
+                                            <button onClick={pickRandomQuote} className={`p-2 rounded-full transition-colors hover:bg-stone-200 ${t.textMuted}`}><IconRefresh size={18} /></button>
+                                            <button onClick={() => setShowQuoteForm(!showQuoteForm)} className={`p-2 rounded-full transition-colors hover:bg-stone-200 ${t.textMuted}`}><IconPlus size={18} /></button>
+                                        </div>
+
+                                        {showQuoteForm && (
+                                            <div className="mt-4 animate-fade-in-down">
+                                                <TextArea t={t} value={newQuoteText} onChange={setNewQuoteText} placeholder="Dein stoisches Zitat..." rows="h-20" />
+                                                <div className="flex gap-2 mb-2">
+                                                    <input type="text" className={`flex-1 p-2 rounded-lg border outline-none text-sm ${t.inputBg} ${t.inputBorder} ${t.inputText}`} placeholder="Autor (z.B. Seneca)" value={newQuoteAuthor} onChange={(e) => setNewQuoteAuthor(e.target.value)} />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={handleAddQuote} className={`flex-1 py-2 rounded-lg text-sm font-bold ${t.buttonPrimary}`}>Speichern</button>
+                                                    <button onClick={() => setShowQuoteForm(false)} className={`px-4 py-2 rounded-lg text-sm font-bold border border-stone-300 ${t.textSecondary}`}>Abbrechen</button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className={`p-5 rounded-xl border transition-colors duration-500 ${t.card}`}>
+                                        <label className={`block text-sm font-bold mb-2 ${t.textPrimary}`}>Aktuelle Stimmung (neutral beobachtet)</label>
+                                        <input type="text" className={`w-full p-3 rounded-lg border outline-none transition-all duration-300 text-sm ${t.inputBg} ${t.inputBorder} ${t.inputText}`} placeholder="Z.B. Ruhig, etwas müde..." value={entry.mood} onChange={(e) => handleInputChange('mood', e.target.value)} />
+                                    </div>
+
+                                    <div className={`p-5 rounded-xl border transition-colors duration-500 ${t.card}`}>
+                                        <SectionHeader t={t} title="1. Dichotomie der Kontrolle" description="Fokus auf das Wesentliche." />
+                                        <TextArea t={t} label="In meiner Macht:" value={entry.controlIn} onChange={(v) => handleInputChange('controlIn', v)} placeholder="Meine Vorbereitung..."/>
+                                        <TextArea t={t} label="Nicht in meiner Macht:" value={entry.controlOut} onChange={(v) => handleInputChange('controlOut', v)} placeholder="Das Wetter..."/>
+                                    </div>
+
+                                    <div className={`p-5 rounded-xl border transition-colors duration-500 ${t.card}`}>
+                                        <SectionHeader t={t} title="2. Premeditatio Malorum" description="Vorausschau der Übel." />
+                                        <TextArea t={t} label="Mögliches Hindernis heute:" value={entry.obstacle} onChange={(v) => handleInputChange('obstacle', v)} placeholder="Der Zug könnte Verspätung haben..."/>
+                                        <TextArea t={t} label="Meine stoische Reaktion darauf:" value={entry.reaction} onChange={(v) => handleInputChange('reaction', v)} placeholder="Ich bleibe ruhig..."/>
+                                    </div>
+
+                                    <div className={`p-5 rounded-xl border transition-colors duration-500 ${t.card}`}>
+                                        <SectionHeader t={t} title="3. Tagesintention" description="Welche Tugend kultiviere ich heute?" />
+                                        <div className="grid grid-cols-2 gap-3 mb-6">
+                                            {virtues.map((v) => (
+                                                <button key={v.id} onClick={() => handleInputChange('virtue', v.id)} className={`p-3 rounded-lg border text-left flex flex-col items-center justify-center gap-2 transition-all duration-300 ${entry.virtue === v.id ? t.virtueBtnActive : t.virtueBtnInactive}`}>
+                                                    {v.icon}
+                                                    <span className="font-bold text-sm">{v.id}</span>
+                                                    <span className="text-[10px] text-center opacity-80">{v.desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="mb-4 pt-4 border-t border-stone-200">
+                                            <p className={`text-sm italic mb-3 ${t.textMuted}`}>Laster-Bearbeitung (Mehrfachauswahl):</p>
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                {vicesList.map((v) => (
+                                                    <button key={v.id} onClick={() => handleViceToggle(v.id)} className={`p-3 rounded-lg border text-left flex flex-col items-center justify-center gap-2 transition-all duration-300 ${(entry.vices || []).includes(v.id) ? t.viceBtnActive : t.virtueBtnInactive}`}>
+                                                        {v.icon}
+                                                        <span className="font-bold text-sm">{v.id}</span>
+                                                        <span className="text-[10px] text-center opacity-80">{v.desc}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <TextArea t={t} label="Meine konkrete Intention:" value={entry.intention} onChange={(v) => handleInputChange('intention', v)} placeholder="Ich werde heute..."/>
+                                    </div>
+
+                                    {!entry.id && (
+                                        <button onClick={() => initiateSave('morning_draft')} className={`w-full py-4 rounded-xl font-bold flex justify-center items-center gap-2 transition-all duration-300 shadow-lg active:scale-95 ${t.buttonPrimary}`}>
+                                            <IconSave size={20} /> Morgen-Reflexion zwischenspeichern
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* REITER: ABEND */}
+                            {activeTab === 'evening' && (
+                                <div className="space-y-6 animate-fade-in">
+                                    <div className={`p-5 rounded-xl border transition-colors duration-500 ${t.card}`}>
+                                        <SectionHeader t={t} title="1. Senecas 3 Fragen" description="Bewerte den Tag objektiv." />
+                                        <TextArea t={t} label="Was habe ich heute falsch gemacht?" value={entry.wrong} onChange={(v) => handleInputChange('wrong', v)} placeholder="Wo bin ich Emotionen erlegen?"/>
+                                        <TextArea t={t} label="Was habe ich heute richtig gemacht?" value={entry.right} onChange={(v) => handleInputChange('right', v)} placeholder="Wo habe ich stoische Ruhe bewahrt?"/>
+                                        <TextArea t={t} label="Was kann ich morgen besser machen?" value={entry.better} onChange={(v) => handleInputChange('better', v)} placeholder="Wo lagere ich unerledigte Dinge ab?"/>
+                                    </div>
+
+                                    <div className={`p-5 rounded-xl border transition-colors duration-500 ${t.card}`}>
+                                        <SectionHeader t={t} title="2. Amor Fati" description="Liebe das Schicksal." />
+                                        <TextArea t={t} label="Ich bin heute dankbar für:" value={entry.gratitude} onChange={(v) => handleInputChange('gratitude', v)} placeholder="Idealerweise auch für eine Schwierigkeit..."/>
+                                    </div>
+
+                                    <div className={`p-5 rounded-xl border transition-colors duration-500 ${t.card}`}>
+                                        <SectionHeader t={t} title="3. Memento Mori" description="Gedenke der Sterblichkeit." />
+                                        <TextArea t={t} label="Meine Gedanken zur verbrachten Zeit:" value={entry.mementoMori} onChange={(v) => handleInputChange('mementoMori', v)} placeholder="Habe ich den Tag sinnvoll genutzt?"/>
+                                    </div>
+
+                                    <button onClick={() => initiateSave('final')} className={`w-full py-4 rounded-xl font-bold flex justify-center items-center gap-2 transition-all duration-300 shadow-lg active:scale-95 ${t.buttonPrimary}`}>
+                                        <IconSave size={20} /> {entry.id ? 'Änderungen speichern' : 'Tag abschließen & Speichern'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* REITER: VERLAUF */}
+                            {activeTab === 'history' && (
+                                <div className="space-y-4 animate-fade-in">
+                                    <h2 className={`text-xl font-bold mb-4 px-2 ${t.textPrimary}`}>Vergangene Einträge</h2>
+                                    {history.length === 0 ? (
+                                        <div className={`p-8 rounded-xl border text-center transition-colors duration-500 ${t.card} ${t.textMuted}`}>
+                                            <div className="flex justify-center opacity-30 mb-3"><IconBook size={48} /></div>
+                                            <p>Noch keine Einträge vorhanden.</p>
+                                        </div>
+                                    ) : (
+                                        history.map((histEntry) => (
+                                            <div key={histEntry.id} className={`p-5 rounded-xl border transition-colors duration-500 ${t.card}`}>
+                                                <div className={`mb-3 border-b pb-3 flex justify-between items-start ${activeTab === 'history' ? 'border-[#432a63]' : 'border-stone-100'}`}>
+                                                    <div>
+                                                        <h4 className={`font-bold text-lg mb-2 ${t.textPrimary}`}>{formatDate(histEntry.date)}</h4>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {histEntry.virtue && <span className={`text-xs px-2 py-1 rounded font-bold ${activeTab === 'history' ? 'bg-[#d4af37]/10 text-[#d4af37]' : 'bg-stone-100 text-stone-600'}`}>+ {histEntry.virtue}</span>}
+                                                            {(histEntry.vices || []).map(vice => <span key={vice} className={`text-xs px-2 py-1 rounded font-bold ${t.badgeVice}`}>- {vice}</span>)}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <button onClick={() => handleEdit(histEntry)} className={`p-2 rounded-full transition-colors hover:bg-stone-500/10 ${t.textMuted}`}><IconEdit size={18} /></button>
+                                                        <button onClick={() => handleDelete(histEntry.id)} className={`p-2 rounded-full transition-colors hover:bg-rose-500/20 text-rose-500`}><IconTrash size={18} /></button>
+                                                    </div>
+                                                </div>
+                                                {histEntry.mood && <p className={`text-sm mb-2 ${t.textSecondary}`}><strong className={t.textPrimary}>Stimmung:</strong> {histEntry.mood}</p>}
+                                                {histEntry.intention && <p className={`text-sm mb-2 ${t.textSecondary}`}><strong className={t.textPrimary}>Intention:</strong> {histEntry.intention}</p>}
+                                                {histEntry.gratitude && <p className={`text-sm ${t.textSecondary}`}><strong className={t.textPrimary}>Dankbar:</strong> {histEntry.gratitude}</p>}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </main>
+
+                        <nav className={`border-t absolute bottom-0 w-full rounded-t-2xl shadow-[0_-4px_10px_rgba(0,0,0,0.1)] pb-safe transition-colors duration-500 z-20 ${t.navBg}`}>
+                            <div className="flex justify-around p-3">
+                                <button onClick={() => setActiveTab('morning')} className={`flex flex-col items-center p-2 transition-colors duration-300 ${activeTab === 'morning' ? t.navActive : t.navInactive}`}>
+                                    <IconSun size={24} className={activeTab === 'morning' ? 'drop-shadow-sm fill-current' : ''} />
+                                    <span className="text-xs font-bold mt-1">Morgen</span>
+                                </button>
+                                <button onClick={() => setActiveTab('evening')} className={`flex flex-col items-center p-2 transition-colors duration-300 ${activeTab === 'evening' ? t.navActive : t.navInactive}`}>
+                                    <IconMoon size={24} className={activeTab === 'evening' ? 'drop-shadow-sm fill-current' : ''} />
+                                    <span className="text-xs font-bold mt-1">Abend</span>
+                                </button>
+                                <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center p-2 transition-colors duration-300 ${activeTab === 'history' ? t.navActive : t.navInactive}`}>
+                                    <IconBook size={24} className={activeTab === 'history' ? 'drop-shadow-md fill-current' : ''} />
+                                    <span className="text-xs font-bold mt-1">Verlauf</span>
+                                </button>
+                            </div>
+                        </nav>
+
+                        {/* --- MODALS --- */}
+                        {showQuotesListModal && (
+                            <div className="absolute inset-0 z-50 flex flex-col bg-stone-900/60 backdrop-blur-sm animate-fade-in">
+                                <div className="flex-1" onClick={() => setShowQuotesListModal(false)}></div>
+                                <div className={`h-[85%] rounded-t-3xl shadow-2xl flex flex-col animate-slide-up ${t.container}`}>
+                                    <div className={`p-5 border-b flex justify-between items-center shrink-0 ${activeTab === 'history' ? 'border-[#3b1f52]' : 'border-stone-200'}`}>
+                                        <h2 className={`text-xl font-bold flex items-center gap-2 ${t.textPrimary}`}><IconQuote size={20} className="opacity-70" /> Deine Zitate</h2>
+                                        <button onClick={() => setShowQuotesListModal(false)} className={`p-2 rounded-full transition-colors hover:bg-stone-500/10 ${t.textMuted}`}><IconClose size={20} /></button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-5 pb-safe space-y-3">
+                                        {quotes.map((q, i) => (
+                                            <div key={i} className={`p-4 rounded-xl border ${t.card}`}>
+                                                <p className={`text-sm italic mb-2 ${t.textPrimary}`}>"{q.text}"</p>
+                                                <p className={`text-xs text-right font-bold ${t.textMuted}`}>— {q.author}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {showSettingsModal && (
+                            <div className="absolute inset-0 z-50 flex flex-col bg-stone-900/60 backdrop-blur-sm animate-fade-in">
+                                <div className="flex-1" onClick={() => setShowSettingsModal(false)}></div>
+                                <div className={`rounded-t-3xl shadow-2xl flex flex-col animate-slide-up ${t.container}`}>
+                                    <div className={`p-5 border-b flex justify-between items-center shrink-0 ${activeTab === 'history' ? 'border-[#3b1f52]' : 'border-stone-200'}`}>
+                                        <h2 className={`text-xl font-bold flex items-center gap-2 ${t.textPrimary}`}><IconSettings size={20} className="opacity-70" /> Einstellungen</h2>
+                                        <button onClick={() => setShowSettingsModal(false)} className={`p-2 rounded-full transition-colors hover:bg-stone-500/10 ${t.textMuted}`}><IconClose size={20} /></button>
+                                    </div>
+                                    <div className="p-6 pb-safe space-y-6">
+                                        <h3 className={`font-bold text-lg mb-2 ${t.textPrimary}`}>Datensicherung</h3>
+                                        <div className="flex flex-col gap-3">
+                                            <button onClick={handleExportData} className={`flex items-center justify-center gap-2 py-4 px-4 rounded-xl font-bold transition-all ${t.buttonPrimary}`}><IconDownload size={18} /> Backup exportieren</button>
+                                            <label className={`flex items-center justify-center gap-2 py-4 px-4 rounded-xl font-bold border cursor-pointer transition-all ${t.textPrimary} border-stone-400 hover:bg-stone-500/10`}>
+                                                <IconUpload size={18} /> Backup importieren
+                                                <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {confirmModal.isOpen && (
+                            <div className="absolute inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm animate-fade-in px-4">
+                                <div className={`w-full max-w-sm rounded-2xl shadow-2xl p-6 ${t.card}`}>
+                                    <h3 className={`text-xl font-bold mb-3 ${t.textPrimary}`}>{confirmModal.title}</h3>
+                                    <p className={`text-sm mb-6 whitespace-pre-wrap ${t.textSecondary}`}>{confirmModal.message}</p>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setConfirmModal({ isOpen: false })} className={`flex-1 py-3 rounded-xl font-bold border transition-colors ${t.textPrimary} border-stone-400 hover:bg-stone-500/10`}>{confirmModal.cancelText || 'Abbrechen'}</button>
+                                        <button onClick={confirmModal.onConfirm} className={`flex-1 py-3 rounded-xl font-bold transition-colors shadow-lg ${confirmModal.isDanger ? 'bg-rose-600 text-white hover:bg-rose-700' : t.buttonPrimary}`}>{confirmModal.confirmText || 'Bestätigen'}</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
+```
